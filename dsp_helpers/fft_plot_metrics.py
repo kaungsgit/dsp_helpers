@@ -25,7 +25,17 @@ def nonlinear_block(signal, harmonics_db):
     return np.polyval([a5, a4, a3, a2, 1, 0], signal)  # [x⁵,x⁴,x³,x²,x,const]
 
 
-def plot_fft_metrics(signal, Fs, f0, f0_bin_range, y_limits=None):
+def get_harmonic_bin(h, f0, freq_res, N):
+    """
+    Returns the bin index corresponding to the h-th harmonic frequency.
+    Handles wrap-around past Nyquist.
+    """
+    return int(round(h * f0 / freq_res)) % (N // 2)
+
+
+def plot_fft_metrics(
+    signal, Fs, f0, f0_bin_range, y_limits=None, harmonics=[2, 3, 4, 5]
+):
     """
     Plots FFT metrics of a given signal and calculates various performance metrics.
 
@@ -35,6 +45,7 @@ def plot_fft_metrics(signal, Fs, f0, f0_bin_range, y_limits=None):
     f0 (float): Fundamental frequency.
     f0_bin_range (int): Range of bins around the fundamental frequency to consider.
     y_limits (tuple, optional): Y-axis limits for the plot.
+    harmonics (list, optional): List of harmonic orders to calculate metrics for. Default is [2,3,4,5].
 
     Returns:
     None
@@ -61,17 +72,17 @@ def plot_fft_metrics(signal, Fs, f0, f0_bin_range, y_limits=None):
 
     # Calculate harmonic powers
     def total_power(h):
-        bin_num = int(round(h * f0 / freq_res)) % (N // 2)
+        bin_num = get_harmonic_bin(h, f0, freq_res, N)
         return fft_magnitude[bin_num] ** 2 + fft_magnitude[N - bin_num] ** 2
 
-    h_powers = [total_power(h) + 1e-10 for h in range(2, 6)]
+    h_powers = [total_power(h) + 1e-10 for h in harmonics]
 
     # Noise calculation (exclude DC, fundamental, harmonics)
     exclude_bins = (
         [0]
         + all_fund_bins.tolist()
-        + [(int(round(h * f0 / freq_res)) % (N // 2)) for h in range(2, 6)]
-        + [N - (int(round(h * f0 / freq_res)) % (N // 2)) for h in range(2, 6)]
+        + [get_harmonic_bin(h, f0, freq_res, N) for h in harmonics]
+        + [N - get_harmonic_bin(h, f0, freq_res, N) for h in harmonics]
     )
     noise_power = np.sum(np.delete(fft_magnitude**2, exclude_bins))
 
@@ -100,8 +111,8 @@ def plot_fft_metrics(signal, Fs, f0, f0_bin_range, y_limits=None):
 
     # Add colored bands around harmonics and label them
     colors = ["red", "green", "purple", "orange"]
-    for i, h in enumerate(range(2, 6)):
-        harmonic_bin = int(round(h * f0 / freq_res)) % (N // 2)
+    for i, h in enumerate(harmonics):
+        harmonic_bin = get_harmonic_bin(h, f0, freq_res, N)
         start = max(0, harmonic_bin - half_window)
         end = min(N // 2, harmonic_bin + half_window)
         plt.axvspan(freqs[start], freqs[end], color=colors[i], alpha=0.3)
