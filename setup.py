@@ -3,9 +3,9 @@ from setuptools import setup
 setup(
     name="dsp_helpers",
     version="1.0",
-    description="Python model for converters",
+    description="Helpful functions for DSP applications",
     author="Kaung Oo",
-    author_email="kaung.sanoo@analog.com",
+    author_email="tycoonkg@gmail.com",
     packages=["dsp_helpers"],
     install_requires=["numpy", "matplotlib"],
 )
