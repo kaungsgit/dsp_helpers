@@ -1,11 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 def nonlinear_block(signal, harmonics_db):
     """
     Creates harmonic distortion using polynomial nonlinearity.
-    Coefficients derived from specified harmonic levels (HD2-HD5 in dBc).
+    
+    Parameters:
+    signal (numpy array): Input signal to be distorted.
+    harmonics_db (list): Harmonic distortion levels in dBc for HD2-HD5.
+    
+    Returns:
+    numpy array: Distorted signal.
     """
     hd_linear = 10 ** (np.array(harmonics_db) / 20)  # Convert dBc to linear scale
 
@@ -18,8 +23,19 @@ def nonlinear_block(signal, harmonics_db):
     # Polynomial: y = x + a2*x² + a3*x³ + a4*x⁴ + a5*x⁵
     return np.polyval([a5, a4, a3, a2, 1, 0], signal)  # [x⁵,x⁴,x³,x²,x,const]
 
-
 def plot_fft_metrics(signal, Fs, f0, f0_bin_range):
+    """
+    Plots FFT metrics of a given signal and calculates various performance metrics.
+    
+    Parameters:
+    signal (numpy array): Input signal.
+    Fs (float): Sampling frequency.
+    f0 (float): Fundamental frequency.
+    f0_bin_range (int): Range of bins around the fundamental frequency to consider.
+    
+    Returns:
+    None
+    """
     N = len(signal)
     fft_result = np.fft.fft(signal)
     fft_freq = np.fft.fftfreq(N, 1 / Fs)
@@ -97,9 +113,11 @@ def plot_fft_metrics(signal, Fs, f0, f0_bin_range):
     plt.grid(True)
     plt.show()
 
-
 if __name__ == "__main__":
-
+    """
+    Example usage of the nonlinear_block and plot_fft_metrics functions.
+    Generates a distorted sine wave with added noise and plots its FFT metrics.
+    """
     # Example usage
     Fs = 50e6  # Sampling frequency
     N = 1024  # Number of samples
