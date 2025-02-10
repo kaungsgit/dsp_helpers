@@ -25,14 +25,6 @@ def nonlinear_block(signal, harmonics_db):
     return np.polyval([a5, a4, a3, a2, 1, 0], signal)  # [x⁵,x⁴,x³,x²,x,const]
 
 
-def get_harmonic_bin(h, f0, freq_res, N):
-    """
-    Returns the bin index corresponding to the h-th harmonic frequency.
-    Handles wrap-around past Nyquist.
-    """
-    return int(round(h * f0 / freq_res)) % (N // 2)
-
-
 def plot_fft_metrics(
     signal, Fs, f0, f0_bin_range, y_limits=None, harmonics=[2, 3, 4, 5]
 ):
@@ -70,19 +62,80 @@ def plot_fft_metrics(
     all_fund_bins = np.unique(np.concatenate([positive_fund_bins, negative_fund_bins]))
     fund_power = np.sum(fft_magnitude[all_fund_bins] ** 2)  # Power from magnitude
 
-    # Calculate harmonic powers
-    def total_power(h):
-        bin_num = get_harmonic_bin(h, f0, freq_res, N)
+    def _get_harmonic_bin(h, f0, freq_res, N):
+        """
+        Calculate the bin index for the h-th harmonic frequency.
+
+        This function computes the bin index corresponding to the h-th harmonic
+        frequency of a given fundamental frequency (f0) in a Discrete Fourier
+        Transform (DFT) of length N. It handles wrap-around past the Nyquist
+        frequency.
+
+        Parameters:
+        h (int): The harmonic number.
+        f0 (float): The fundamental frequency.
+        freq_res (float): The frequency resolution of the DFT.
+        N (int): The length of the DFT.
+
+        Returns:
+        int: The bin index corresponding to the h-th harmonic frequency.
+        """
+        return int(round(h * f0 / freq_res)) % (N // 2)
+
+    def _total_power(h):
+        """
+        Calculate the total power of a given harmonic in the FFT magnitude spectrum.
+
+        Args:
+            h (int): The harmonic number for which the total power is to be calculated.
+
+        Returns:
+            float: The total power of the specified harmonic.
+
+        Note:
+            This function assumes that `get_harmonic_bin`, `f0`, `freq_res`, `N`, and `fft_magnitude`
+            are defined in the scope where this function is used.
+        """
+        bin_num = _get_harmonic_bin(h, f0, freq_res, N)
         return fft_magnitude[bin_num] ** 2 + fft_magnitude[N - bin_num] ** 2
 
-    h_powers = [total_power(h) + 1e-10 for h in harmonics]
+    def _highlight_range(bin_idx, freq_array, half_window, color, label=None):
+        """
+        Highlights a range on a plot and optionally adds a label.
+
+        Parameters:
+        bin_idx (int): The index of the bin to highlight around.
+        freq_array (array-like): Array of frequency values.
+        half_window (int): The number of bins to highlight on either side of bin_idx.
+        color (str): The color to use for highlighting.
+        label (str, optional): The label to place at the center of the highlighted range. Defaults to None.
+
+        Returns:
+        None
+        """
+        start = max(0, bin_idx - half_window)
+        end = min(N // 2, bin_idx + half_window)
+        plt.axvspan(freq_array[start], freq_array[end], color=color, alpha=0.3)
+        if label:
+            plt.text(
+                (freq_array[start] + freq_array[end]) / 2,
+                y_limits[1] if y_limits else plt.ylim()[1],
+                label,
+                color=color,
+                ha="center",
+                va="bottom",
+                fontsize=10,
+                bbox=dict(facecolor="white", alpha=0.5, edgecolor="none"),
+            )
+
+    h_powers = [_total_power(h) + 1e-10 for h in harmonics]
 
     # Noise calculation (exclude DC, fundamental, harmonics)
     exclude_bins = (
         [0]
         + all_fund_bins.tolist()
-        + [get_harmonic_bin(h, f0, freq_res, N) for h in harmonics]
-        + [N - get_harmonic_bin(h, f0, freq_res, N) for h in harmonics]
+        + [_get_harmonic_bin(h, f0, freq_res, N) for h in harmonics]
+        + [N - _get_harmonic_bin(h, f0, freq_res, N) for h in harmonics]
     )
     noise_power = np.sum(np.delete(fft_magnitude**2, exclude_bins))
 
@@ -106,26 +159,14 @@ def plot_fft_metrics(
     if y_limits:
         plt.ylim(y_limits)
 
-    # Add blue band around fundamental tone
-    plt.axvspan(freqs[start], freqs[end], color="blue", alpha=0.3)
+    # Highlight fundamental
+    _highlight_range(fund_bin, freqs, half_window, "blue")
 
-    # Add colored bands around harmonics and label them
+    # Highlight harmonics
     colors = ["red", "green", "purple", "orange"]
     for i, h in enumerate(harmonics):
-        harmonic_bin = get_harmonic_bin(h, f0, freq_res, N)
-        start = max(0, harmonic_bin - half_window)
-        end = min(N // 2, harmonic_bin + half_window)
-        plt.axvspan(freqs[start], freqs[end], color=colors[i], alpha=0.3)
-        plt.text(
-            (freqs[start] + freqs[end]) / 2,
-            y_limits[1] if y_limits else plt.ylim()[1],
-            f"H{h}",
-            color=colors[i],
-            ha="center",
-            va="bottom",
-            fontsize=10,
-            bbox=dict(facecolor="white", alpha=0.5, edgecolor="none"),
-        )
+        harmonic_bin = _get_harmonic_bin(h, f0, freq_res, N)
+        _highlight_range(harmonic_bin, freqs, half_window, colors[i], label=f"H{h}")
 
     # Annotation box
     text = (
