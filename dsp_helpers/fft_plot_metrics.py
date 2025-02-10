@@ -13,6 +13,23 @@ def nonlinear_block(signal, harmonics_db):
     Returns:
     numpy array: Distorted signal.
     """
+    # Get polynomial coefficients from harmonic distortion levels
+    poly_coeffs = hd_to_poly(harmonics_db)
+
+    # Polynomial: y = x + a2*x² + a3*x³ + a4*x⁴ + a5*x⁵
+    return np.polyval(poly_coeffs, signal)  # [x⁵,x⁴,x³,x²,x,const]
+
+
+def hd_to_poly(harmonics_db):
+    """
+    Converts harmonic distortion levels in dBc to polynomial coefficients.
+
+    Parameters:
+    harmonics_db (list): Harmonic distortion levels in dBc for HD2-HD5.
+
+    Returns:
+    np.ndarray: Polynomial coefficients starting from x⁵ to constant term.
+    """
     hd_linear = 10 ** (np.array(harmonics_db) / 20)  # Convert dBc to linear scale
 
     # Solve for polynomial coefficients using harmonic balance equations
@@ -21,13 +38,10 @@ def nonlinear_block(signal, harmonics_db):
     a3 = 4 * hd_linear[1] - (5 / 4) * a5  # HD3 coefficient (x^3 term)
     a2 = 2 * hd_linear[0] - a4  # HD2 coefficient (x^2 term)
 
-    # Polynomial: y = x + a2*x² + a3*x³ + a4*x⁴ + a5*x⁵
-    return np.polyval([a5, a4, a3, a2, 1, 0], signal)  # [x⁵,x⁴,x³,x²,x,const]
+    return np.array([a5, a4, a3, a2, 1, 0])  # [x⁵,x⁴,x³,x²,x,const]
 
 
-def plot_fft_metrics(
-    signal, Fs, f0, f0_bin_range, y_limits=None, harmonics=[2, 3, 4, 5]
-):
+def plot_fft_metrics(signal, Fs, f0, f0_bin_range, y_limits=None, harmonics=[2, 3, 4, 5]):
     """
     Plots FFT metrics of a given signal and calculates various performance metrics.
 
@@ -137,7 +151,7 @@ def plot_fft_metrics(
         + [_get_harmonic_bin(h, f0, freq_res, N) for h in harmonics]
         + [N - _get_harmonic_bin(h, f0, freq_res, N) for h in harmonics]
     )
-    noise_power = np.sum(np.delete(fft_magnitude**2, exclude_bins))
+    noise_power = np.sum(np.delete(fft_magnitude**2, exclude_bins)) + 1e-10  # Avoid log(0)
 
     # Metrics calculation
     snr = 10 * np.log10(fund_power / noise_power)
