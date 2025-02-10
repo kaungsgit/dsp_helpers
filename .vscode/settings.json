@@ -1,0 +1,10 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}\\out\\virtualenv\\dsp_helpers\\Scripts\\python.exe",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  },
+  "files.exclude": {
+    "**/__pycache__": true
+  }
+}
